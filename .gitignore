@@ -1,0 +1,23 @@
+# project
+data/
+scratch/
+
+# python
+__pycache__/
+*.py[cod]
+
+# virtual environments
+.venv/
+venv/
+env/
+
+# jupyter
+.ipynb_checkpoints/
+
+# os
+.DS_Store
+Thumbs.db
+
+# ide
+.vscode/
+.idea/
