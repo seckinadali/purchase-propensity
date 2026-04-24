@@ -4,7 +4,7 @@ Goal: Given a user's browsing behavior, predict the probability that they purcha
 
 The feature window (Oct 1–31) and target window (Nov 1–5) are kept strictly separate. Labels are built on Nov 1–5 purchasers only.
 
-> **Work in progress.** EDA complete, feature engineering and modeling in progress.
+> **Work in progress.** EDA and feature engineering complete, modeling in progress.
 
 ## Data
 
