@@ -1,0 +1,16 @@
+{
+  "n_estimators": 78,
+  "params": {
+    "num_leaves": 100,
+    "min_child_samples": 55,
+    "learning_rate": 0.08067373048451444,
+    "subsample": 0.6175215063148914,
+    "colsample_bytree": 0.6617157968270191,
+    "reg_alpha": 0.5,
+    "reg_lambda": 0.5
+  },
+  "oof_auc": 0.9465,
+  "oof_logloss": 0.0734,
+  "val_auc": 0.9445,
+  "val_logloss": 0.0743
+}
