@@ -1,6 +1,8 @@
 # project
 data/
 scratch/
+models/*.pkl
+output/test_predictions.csv
 
 # python
 __pycache__/
