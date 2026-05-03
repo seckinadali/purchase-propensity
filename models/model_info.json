@@ -9,6 +9,16 @@
     "reg_alpha": 0.5,
     "reg_lambda": 0.5
   },
+  "cat_purchase_rates": {
+    "apparel": 0.004906,
+    "appliances": 0.036907,
+    "auto": 0.004465,
+    "computers": 0.013665,
+    "construction": 0.003628,
+    "electronics": 0.185328,
+    "furniture": 0.00544,
+    "kids": 0.002843
+  },
   "oof_auc": 0.9465,
   "oof_logloss": 0.0734,
   "val_model_auc": 0.9445,

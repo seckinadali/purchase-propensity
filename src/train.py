@@ -264,12 +264,18 @@ def main() -> None:
     # Model + metadata
     with open(MODELS_DIR / 'lgb_model.pkl', 'wb') as f:
         pickle.dump(full_model, f)
+    cat_purchase_rates = (
+        train.groupby('category_l1')['label'].mean()
+        .round(6)
+        .to_dict()
+    )
     model_info = {
-        'final_model_n_estimators': mean_iters,       # mean CV best_iter; used for final model
+        'final_model_n_estimators': mean_iters,        # mean CV best_iter; used for final model
         'params':                   best_params,
-        'oof_auc':                  round(oof_auc, 4), # GroupKFold on train_pool (folds 1-4)
+        'cat_purchase_rates':       cat_purchase_rates, # loaded by serve.py at startup
+        'oof_auc':                  round(oof_auc, 4),  # GroupKFold on train_pool (folds 1-4)
         'oof_logloss':              round(oof_ll, 4),
-        'val_model_auc':            round(val_auc, 4), # model trained on train_pool, evaluated on val
+        'val_model_auc':            round(val_auc, 4),  # model trained on train_pool, evaluated on val
         'val_model_logloss':        round(val_ll, 4),
     }
     with open(MODELS_DIR / 'model_info.json', 'w') as f:
