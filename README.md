@@ -28,9 +28,9 @@ Nov 1–5 is chosen as the stable period before Black Friday run-up (~22k purcha
 - **5-fold GroupKFold by user** — users repeat across (user, category)-rows; random k-folds would leak the same user across train and validation, inflating CV scores.
 - **20% validation set held out before any fitting** — including before hyperparameter search and before computing any target-derived features (the category prior is computed from `train_pool` only). Measures generalization to fully unseen users.
 - **HP search on fold 0 only; fold 0 excluded from the reported OOF AUC** — tuning on a fold and then reporting that fold inflates the number. The process turned out not to be critical: AUC across 20 trials varied by under 0.001.
-- **LightGBM selected from {LightGBM, XGBoost, HistGradientBoosting}** — all three landed at val AUC ~0.9444–0.9445 with default hyperparameters; LightGBM was picked for speed (107s vs 131s for XGBoost on 5-fold CV).
-- **Calibration evaluated on a held-out half of the val set** — fitting a calibrator on one set and evaluating it on the same set is circular. Isotonic regression slightly *worsened* log loss on the held-out half (0.0735 → 0.0738), so the final model uses raw LightGBM scores. The model is already well-calibrated in expectation (val mean prob 0.0320, true rate 0.0323).
-- **Full-population scaffold over case-control sampling** — training LightGBM on a purchaser-only scaffold drops val AUC by 0.035 (logistic regression drops only 0.002), showing the gap is a training-data problem, not a model-capacity problem.
+- **LightGBM selected from {LightGBM, XGBoost, HistGradientBoosting}** — all three landed at val AUC ~0.9444–0.9445 with default hyperparameters; LightGBM was picked for speed.
+- **Calibration evaluated on a held-out half of the val set** — fitting a calibrator on one set and evaluating it on the same set is circular. Isotonic regression slightly *worsened* log loss on the held-out half (0.0736 → 0.0739), so the final model uses raw LightGBM scores. The model is already well-calibrated in expectation (val mean prob 0.0320, true rate 0.0323).
+- **Full-population scaffold over case-control sampling** — training LightGBM on a purchaser-only scaffold drops val AUC by 0.036 (logistic regression drops only 0.002), showing the gap is a training-data problem, not a model-capacity problem.
 - **Reproducibility flags** — `n_jobs=1`, `deterministic=True`, `force_col_wise=True` for LightGBM, fixed `SEED=42` everywhere. Bit-exact across reruns.
 
 ---
@@ -54,6 +54,8 @@ Nov 1–5 is chosen as the stable period before Black Friday run-up (~22k purcha
 - **Cold-start users would receive inflated predictions in production:** Users with no October activity (8.2% of val) have a positive rate of ~12.7%, roughly four times the overall val rate, and the model is well-calibrated for them on this dataset (AUC 0.9272). However, this is a training-data artifact: the scaffold was built from October-active users, so all zero-feature training examples were purchasers. A truly new user in production would receive ~12% predicted probability rather than the ~3% base rate. Production deployment would need either a cold-start fallback or a training scaffold that includes zero-feature negatives.
 
 **Note on causality.** This is a propensity model (predicting who *will* buy), not an uplift model (predicting who will buy *because of* an intervention). It is designed for ranking and expected-value calculations; randomized experiments (A/B testing) are recommended to measure the impact of any marketing actions taken on these scores.
+
+**Held-out test set.** The final model was evaluated once on the 20% held-out test users — never touched during model selection, HP search, calibration, the case-control experiment, or any other decision: **Test AUC 0.9466, Test LogLoss 0.0739, mean prob 0.0324 (true rate 0.0326).** Test AUC is 0.0021 *above* val (0.9445) with log loss 0.0004 lower, and the mean predicted probability matches the true test rate within 0.0002. The val-driven decisions did not over-fit val, and the model's calibration in expectation holds on a fresh held-out set.
 
 ---
 

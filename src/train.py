@@ -267,7 +267,14 @@ def main() -> None:
 
     X_test     = make_lgb_arrays(test_full)
     test_preds = full_model.predict_proba(X_test)[:, 1]
-    print(f'Test mean prob: {test_preds.mean():.4f}  (train pos rate: {y_full.mean():.4f})\n')
+    print(f'Test mean prob: {test_preds.mean():.4f}  (train pos rate: {y_full.mean():.4f})')
+
+    # Held-out test evaluation — used once, never used to inform modeling decisions.
+    y_test   = test_full['label'].values
+    test_auc = roc_auc_score(y_test, test_preds)
+    test_ll  = log_loss(y_test,  test_preds)
+    print(f'Test AUC: {test_auc:.4f}  LogLoss: {test_ll:.4f}'
+          f'  (true rate: {y_test.mean():.4f})\n')
 
     # Figures
     print('Saving figures...')
@@ -288,6 +295,8 @@ def main() -> None:
         'oof_logloss':              round(oof_ll, 4),
         'val_model_auc':            round(val_auc, 4),  # model trained on train_pool, evaluated on val
         'val_model_logloss':        round(val_ll, 4),
+        'test_model_auc':           round(test_auc, 4), # final model on held-out test users (used once)
+        'test_model_logloss':       round(test_ll, 4),
     }
     with open(MODELS_DIR / 'model_info.json', 'w') as f:
         json.dump(model_info, f, indent=2)
