@@ -1,5 +1,5 @@
 {
-  "n_estimators": 78,
+  "final_model_n_estimators": 78,
   "params": {
     "num_leaves": 100,
     "min_child_samples": 55,
@@ -11,6 +11,6 @@
   },
   "oof_auc": 0.9465,
   "oof_logloss": 0.0734,
-  "val_auc": 0.9445,
-  "val_logloss": 0.0743
+  "val_model_auc": 0.9445,
+  "val_model_logloss": 0.0743
 }

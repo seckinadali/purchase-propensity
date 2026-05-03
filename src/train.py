@@ -265,12 +265,12 @@ def main() -> None:
     with open(MODELS_DIR / 'lgb_model.pkl', 'wb') as f:
         pickle.dump(full_model, f)
     model_info = {
-        'n_estimators': mean_iters,
-        'params':       best_params,
-        'oof_auc':      round(oof_auc, 4),
-        'oof_logloss':  round(oof_ll, 4),
-        'val_auc':      round(val_auc, 4),
-        'val_logloss':  round(val_ll, 4),
+        'final_model_n_estimators': mean_iters,       # mean CV best_iter; used for final model
+        'params':                   best_params,
+        'oof_auc':                  round(oof_auc, 4), # GroupKFold on train_pool (folds 1-4)
+        'oof_logloss':              round(oof_ll, 4),
+        'val_model_auc':            round(val_auc, 4), # model trained on train_pool, evaluated on val
+        'val_model_logloss':        round(val_ll, 4),
     }
     with open(MODELS_DIR / 'model_info.json', 'w') as f:
         json.dump(model_info, f, indent=2)
