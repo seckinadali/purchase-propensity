@@ -14,5 +14,7 @@ dependencies = [
     "polars",
     "scikit-learn",
     "lightgbm",
-    "xgboost"
+    "xgboost",
+    "fastapi",
+    "uvicorn[standard]",
 ]
