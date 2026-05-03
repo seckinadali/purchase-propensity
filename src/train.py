@@ -37,6 +37,12 @@ def make_lgb_arrays(df: pd.DataFrame) -> pd.DataFrame:
     return X
 
 
+def attach_cat_prior(df: pd.DataFrame, cat_priors: pd.Series) -> pd.DataFrame:
+    df = df.copy()
+    df['cat_purchase_rate'] = df['category_l1'].map(cat_priors).astype(float)
+    return df
+
+
 def make_val_split(train: pd.DataFrame):
     all_users = np.sort(train['user_id'].unique())
     rng       = np.random.default_rng(SEED)
@@ -215,6 +221,12 @@ def main() -> None:
     val_pos_rate = val_df['label'].mean()
     print(f'train_pool: {len(train_pool):,} rows | val_df: {len(val_df):,} rows\n')
 
+    # Category prior — target-derived, computed from train_pool only.
+    cat_priors = train_pool.groupby('category_l1')['label'].mean()
+
+    train_pool = attach_cat_prior(train_pool, cat_priors)
+    val_df     = attach_cat_prior(val_df,     cat_priors)
+
     X_pool   = make_lgb_arrays(train_pool)
     y_pool   = train_pool['label']
     groups   = train_pool['user_id']
@@ -245,12 +257,15 @@ def main() -> None:
 
     # Final model on full train (pool + val)
     print('Training final model on full train set...')
-    X_full     = make_lgb_arrays(train)
-    y_full     = train['label']
+    train_full = attach_cat_prior(train, cat_priors)
+    test_full  = attach_cat_prior(test,  cat_priors)
+
+    X_full     = make_lgb_arrays(train_full)
+    y_full     = train_full['label']
     full_model = lgb.LGBMClassifier(**lgb_params)
     full_model.fit(X_full, y_full)
 
-    X_test     = make_lgb_arrays(test)
+    X_test     = make_lgb_arrays(test_full)
     test_preds = full_model.predict_proba(X_test)[:, 1]
     print(f'Test mean prob: {test_preds.mean():.4f}  (train pos rate: {y_full.mean():.4f})\n')
 
@@ -264,11 +279,7 @@ def main() -> None:
     # Model + metadata
     with open(MODELS_DIR / 'lgb_model.pkl', 'wb') as f:
         pickle.dump(full_model, f)
-    cat_purchase_rates = (
-        train.groupby('category_l1')['label'].mean()
-        .round(6)
-        .to_dict()
-    )
+    cat_purchase_rates = cat_priors.round(6).to_dict()
     model_info = {
         'final_model_n_estimators': mean_iters,        # mean CV best_iter; used for final model
         'params':                   best_params,

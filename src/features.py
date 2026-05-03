@@ -94,7 +94,6 @@ def assemble_features(
     user_cat_events: pl.DataFrame,
     recency_feats:  pl.DataFrame,
     user_feats:     pl.DataFrame,
-    cat_priors:     pl.DataFrame,
     brand_feats:    pl.DataFrame,
     price_feats:    pl.DataFrame,
 ) -> pl.DataFrame:
@@ -103,7 +102,6 @@ def assemble_features(
         .join(user_cat_events, on=['user_id', 'category_l1'], how='left')
         .join(recency_feats,   on=['user_id', 'category_l1'], how='left')
         .join(user_feats,      on='user_id',                  how='left')
-        .join(cat_priors,      on='category_l1',              how='left')
         .join(brand_feats,     on=['user_id', 'category_l1'], how='left')
         .join(price_feats,     on=['user_id', 'category_l1'], how='left')
         .with_columns(
@@ -174,12 +172,6 @@ def main() -> None:
         rate = df['label'].mean() * 100
         print(f'{name}: {len(df):,} rows | positive rate: {rate:.2f}%')
 
-    # Category priors from train_labeled (includes val users — see note in 02_features.ipynb)
-    cat_priors = (
-        train_labeled
-        .group_by('category_l1')
-        .agg(pl.col('label').mean().alias('cat_purchase_rate'))
-    )
 
     # Feature groups from Oct behavioral data
     print('Computing features...')
@@ -197,7 +189,7 @@ def main() -> None:
     brand_feats   = user_cat_brand_feats(oct_lf)
     price_feats   = user_cat_price_feats(oct_lf)
 
-    args = (user_cat_events, recency_feats, user_feats, cat_priors, brand_feats, price_feats)
+    args = (user_cat_events, recency_feats, user_feats, brand_feats, price_feats)
     train_features = assemble_features(train_labeled, *args)
     test_features  = assemble_features(test_labeled,  *args)
 

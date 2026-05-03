@@ -26,11 +26,11 @@ Nov 1–5 is chosen as the stable period before Black Friday run-up (~22k purcha
 ## Methodology
 
 - **5-fold GroupKFold by user** — users repeat across (user, category)-rows; random k-folds would leak the same user across train and validation, inflating CV scores.
-- **20% validation set held out before any fitting** — including before hyperparameter search. Measures generalization to fully unseen users.
+- **20% validation set held out before any fitting** — including before hyperparameter search and before computing any target-derived features (the category prior is computed from `train_pool` only). Measures generalization to fully unseen users.
 - **HP search on fold 0 only; fold 0 excluded from the reported OOF AUC** — tuning on a fold and then reporting that fold inflates the number. The process turned out not to be critical: AUC across 20 trials varied by under 0.001.
-- **LightGBM selected from {LightGBM, XGBoost, HistGradientBoosting}** — all three landed at val AUC ~0.9444–0.9445 with default hyperparameters; LightGBM was picked for speed (108s vs 172s for XGBoost on 5-fold CV).
-- **Calibration evaluated on a held-out half of the val set** — fitting a calibrator on one set and evaluating it on the same set is circular. Isotonic regression slightly *worsened* log loss on the held-out half (0.0736 → 0.0739), so the final model uses raw LightGBM scores. The model is already well-calibrated in expectation (val mean prob 0.0320, true rate 0.0323).
-- **Full-population scaffold over case-control sampling** — training LightGBM on a purchaser-only scaffold drops val AUC by 0.036 (logistic regression drops only 0.002), showing the gap is a training-data problem, not a model-capacity problem.
+- **LightGBM selected from {LightGBM, XGBoost, HistGradientBoosting}** — all three landed at val AUC ~0.9444–0.9445 with default hyperparameters; LightGBM was picked for speed (107s vs 131s for XGBoost on 5-fold CV).
+- **Calibration evaluated on a held-out half of the val set** — fitting a calibrator on one set and evaluating it on the same set is circular. Isotonic regression slightly *worsened* log loss on the held-out half (0.0735 → 0.0738), so the final model uses raw LightGBM scores. The model is already well-calibrated in expectation (val mean prob 0.0320, true rate 0.0323).
+- **Full-population scaffold over case-control sampling** — training LightGBM on a purchaser-only scaffold drops val AUC by 0.035 (logistic regression drops only 0.002), showing the gap is a training-data problem, not a model-capacity problem.
 - **Reproducibility flags** — `n_jobs=1`, `deterministic=True`, `force_col_wise=True` for LightGBM, fixed `SEED=42` everywhere. Bit-exact across reruns.
 
 ---
@@ -47,7 +47,7 @@ Nov 1–5 is chosen as the stable period before Black Friday run-up (~22k purcha
 
 **Key findings:**
 
-- **Top 20% targeting captures 70–85% of buyers:** Ranking users by propensity score and targeting the top 20% recovers 70–85% of actual buyers across all categories — a 3.5–4× lift over random selection.
+- **Top 20% targeting captures ~70–80% of buyers:** Ranking users by propensity score and targeting the top 20% recovers roughly 70–80% of actual buyers across all categories — a 3.5–4× lift over random selection.
 - **Price segment is the top signal:** `avg_price_viewed_30d` leads feature importance by a notable margin. It likely captures where a user sits in the price range of a category, which is strongly predictive of whether they'll buy there.
 - **Cross-category activity outranks category-specific:** `total_views_30d`, `total_purchases_30d`, and `session_count_30d` rank above their category-specific counterparts — overall engagement level generalizes across categories.
 - **Category-specific cart counts are among the weakest features** despite representing explicit purchase intent, possibly because short-window cart behavior is noisy at this dataset's scale.
