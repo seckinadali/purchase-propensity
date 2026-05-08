@@ -17,20 +17,22 @@ Nov 1–5 is chosen as the stable period before Black Friday run-up (~22k purcha
 
 **Category scope:** Eight categories with ≥500 training positives are used: electronics, appliances, computers, furniture, apparel, auto, construction, kids. The remaining five categories are excluded from the scaffold but their October events still contribute to user-level features.
 
-**Scaffold:** All (user, category)-pairs across the 8 categories, 80/20 user split — train 1.4M rows (3.22% positive), test 349K (3.24%).
+**User pool:** Nov 1–5 purchasers plus non-purchasers sampled at 3:1 from the full dataset (any user appearing in events who did not purchase in the target window).
 
-**Features:** Six groups: recency (days since last view/cart/purchase per category), frequency (event counts at 7/14/30-day windows, category-specific and cross-category), engagement (active days, session count, category breadth), intent ratios (cart-to-view at 7d and 30d), price (avg viewed and carted price per category), and category base rate.
+**Scaffold:** All (user, category)-pairs across the 8 categories, 80/20 user split — train 1.40M rows (3.21% positive), test 349K rows (3.29% positive). About 41% of val users have no October view activity (the cold-start slice; see Results).
+
+**Features:** Seven groups: recency (days since last view/cart/purchase per category), frequency (event counts at 7/14/30-day windows, category-specific and cross-category), engagement (active days, session count, category breadth), brand diversity (unique brands viewed per category), intent ratios (cart-to-view at 7d and 30d), price (avg viewed and carted price per category), and category base rate.
 
 ---
 
 ## Methodology
 
 - **5-fold GroupKFold by user** — users repeat across (user, category)-rows; random k-folds would leak the same user across train and validation, inflating CV scores.
-- **20% validation set held out before any fitting** — including before hyperparameter search and before computing any target-derived features (the category prior is computed from `train_pool` only). Measures generalization to fully unseen users.
+- **20% validation set held out before any fitting** — including before hyperparameter search and before computing any target-derived features (the category prior is computed from `train_pool` only). Measures generalization to fully unseen users. Explicitly used in model comparison, calibration evaluation, cold-start analysis, and the negative-sampling experiment.
 - **HP search on fold 0 only; fold 0 excluded from the reported OOF AUC** — tuning on a fold and then reporting that fold inflates the number. The process turned out not to be critical: AUC across 20 trials varied by under 0.001.
-- **LightGBM selected from {LightGBM, XGBoost, HistGradientBoosting}** — all three landed at val AUC ~0.9444–0.9445 with default hyperparameters; LightGBM was picked for speed.
-- **Calibration evaluated on a held-out half of the val set** — fitting a calibrator on one set and evaluating it on the same set is circular. Isotonic regression slightly *worsened* log loss on the held-out half (0.0736 → 0.0739), so the final model uses raw LightGBM scores. The model is already well-calibrated in expectation (val mean prob 0.0320, true rate 0.0323).
-- **Full-population scaffold over case-control sampling** — training LightGBM on a purchaser-only scaffold drops val AUC by 0.036 (logistic regression drops only 0.002), showing the gap is a training-data problem, not a model-capacity problem.
+- **LightGBM selected from {LightGBM, XGBoost, HistGradientBoosting}** — at default parameters all three landed at val AUC 0.9227–0.9229; LightGBM was picked for speed at parity. Full comparison table (including LR and naive baseline) in `03_modeling.ipynb`.
+- **Calibration evaluated on a held-out half of the val set** — fitting a calibrator on one set and evaluating it on the same set is circular. Isotonic regression did not improve log loss on the held-out half, so the final model uses raw LightGBM scores. The model is well-calibrated in expectation (val mean prob 0.0320, true rate 0.0319).
+- **Full-population scaffold over case-control sampling** — restricting training to a purchaser-only scaffold drops val AUC by 0.015 (0.923 → 0.908), so the full scaffold is used. Experiment in `03_modeling.ipynb`.
 - **Reproducibility flags** — `n_jobs=1`, `deterministic=True`, `force_col_wise=True` for LightGBM, fixed `SEED=42` everywhere. Bit-exact across reruns.
 
 ---
@@ -39,23 +41,23 @@ Nov 1–5 is chosen as the stable period before Black Friday run-up (~22k purcha
 
 | Model | OOF AUC | Val AUC | Val LogLoss |
 |---|---|---|---|
-| LightGBM (tuned) | 0.9465 | 0.9445 | 0.0743 |
-| Logistic Regression | 0.9085 | 0.9069 | 0.0895 |
-| Naive baseline (category rate) | 0.8694 | 0.8705 | 0.1061 |
+| LightGBM (tuned) | 0.9219 | 0.9230 | 0.0866 |
+| Logistic Regression | 0.9101 | 0.9105 | 0.0917 |
+| Naive baseline (category rate) | 0.8689 | 0.8723 | 0.1048 |
 
 ![Top-k recall by category](figures/top_k_recall.png)
 
 **Key findings:**
 
-- **Top 20% targeting captures ~70–80% of buyers:** Ranking users by propensity score and targeting the top 20% recovers roughly 70–80% of actual buyers across all categories — a 3.5–4× lift over random selection.
+- **Top 20% targeting captures ~50–66% of buyers (per category):** Ranking users by propensity score and targeting the top 20% per category recovers roughly 50–66% of actual buyers across categories — a 2.5–3.4× lift over random selection. Categories with sparser positives (auto, furniture) sit at the higher end of the recall range; the densest category (electronics) at the lower end.
 - **Price segment is the top signal:** `avg_price_viewed_30d` leads feature importance by a notable margin. It likely captures where a user sits in the price range of a category, which is strongly predictive of whether they'll buy there.
 - **Cross-category activity outranks category-specific:** `total_views_30d`, `total_purchases_30d`, and `session_count_30d` rank above their category-specific counterparts — overall engagement level generalizes across categories.
 - **Category-specific cart counts are among the weakest features** despite representing explicit purchase intent, possibly because short-window cart behavior is noisy at this dataset's scale.
-- **Cold-start users would receive inflated predictions in production:** Users with no October activity (8.2% of val) have a positive rate of ~12.7%, roughly four times the overall val rate, and the model is well-calibrated for them on this dataset (AUC 0.9272). However, this is a training-data artifact: the scaffold was built from October-active users, so all zero-feature training examples were purchasers. A truly new user in production would receive ~12% predicted probability rather than the ~3% base rate. Production deployment would need either a cold-start fallback or a training scaffold that includes zero-feature negatives.
+- **Cold-start users score near the base rate.** Users with no October activity make up 41% of val set. Their true positive rate is 2.6%, in line with the 3.2% overall val base rate; the model predicts a mean probability of 0.0256 for them, matching the slice's true rate to four decimals. Cold val AUC is 0.8811, predictably below the overall 0.9230 since per-user behavioral features carry no information for this group.
 
 **Note on causality.** This is a propensity model (predicting who *will* buy), not an uplift model (predicting who will buy *because of* an intervention). It is designed for ranking and expected-value calculations; randomized experiments (A/B testing) are recommended to measure the impact of any marketing actions taken on these scores.
 
-**Held-out test set.** The final model was evaluated once on the 20% held-out test users — never touched during model selection, HP search, calibration, the case-control experiment, or any other decision: **Test AUC 0.9466, Test LogLoss 0.0739, mean prob 0.0324 (true rate 0.0326).** Test AUC is 0.0021 *above* val (0.9445) with log loss 0.0004 lower, and the mean predicted probability matches the true test rate within 0.0002. The val-driven decisions did not over-fit val, and the model's calibration in expectation holds on a fresh held-out set.
+**Held-out test set.** The final model was evaluated once on the 20% held-out test users — never touched during model selection, HP search, calibration, the case-control experiment, or any other decision: **Test AUC 0.9234, Test LogLoss 0.0877, mean prob 0.0321 (true rate 0.0329).** Test AUC is 0.0004 above val (0.9230) and the mean predicted probability matches the true test rate within 0.0008. The val-driven decisions did not over-fit val, and the model's calibration in expectation holds on a fresh held-out set.
 
 ---
 
@@ -98,8 +100,32 @@ curl -X POST http://localhost:8000/score \
 ```
 
 ```json
-{"record_id": "user_42", "category_l1": "electronics", "propensity_score": 0.4817}
+{"record_id": "user_42", "category_l1": "electronics", "propensity_score": 0.5147}
 ```
+
+**Cold-start callers** can omit every behavioral field:
+
+```bash
+curl -X POST http://localhost:8000/score \
+  -H 'Content-Type: application/json' \
+  -d '{"record_id": "user_42", "category_l1": "electronics"}'
+```
+
+```json
+{"record_id": "user_42", "category_l1": "electronics", "propensity_score": 0.1520}
+```
+
+```bash
+curl -X POST http://localhost:8000/score \
+  -H 'Content-Type: application/json' \
+  -d '{"record_id": "user_42", "category_l1": "kids"}'
+```
+
+```json
+{"record_id": "user_42", "category_l1": "kids", "propensity_score": 0.0054}
+```
+
+Both scores sit near their category priors (electronics 0.185, kids 0.003) as expected.
 
 **`POST /score/batch`** — score across multiple categories at once; response is sorted by score descending, making it ready to use as a ranked target list. Each record follows the same schema as `/score`. The `cat_purchase_rate` and `cart_view_ratio` features are computed server-side and do not need to be supplied.
 

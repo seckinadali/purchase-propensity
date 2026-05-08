@@ -23,7 +23,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / 'src'))
-from config import FEATURE_COLS, KEPT_CATS
+from config import FEATURE_COLS, KEPT_CATS, NUM_COLS
 
 MODEL_PATH      = Path(__file__).resolve().parent / 'models' / 'lgb_model.pkl'
 MODEL_INFO_PATH = Path(__file__).resolve().parent / 'models' / 'model_info.json'
@@ -83,12 +83,13 @@ class ScoreRequest(BaseModel):
     days_since_purchase: Optional[float] = None
 
     # ── user-level cross-category aggregates ─────────────────────────────────
-    total_views_30d:      int = 0
-    total_carts_30d:      int = 0
-    total_purchases_30d:  int = 0
-    active_days_30d:      int = 0
-    category_breadth_30d: int = 0
-    session_count_30d:    int = 0
+    # None = user had no October activity at all.
+    total_views_30d:      Optional[int] = None
+    total_carts_30d:      Optional[int] = None
+    total_purchases_30d:  Optional[int] = None
+    active_days_30d:      Optional[int] = None
+    category_breadth_30d: Optional[int] = None
+    session_count_30d:    Optional[int] = None
 
     # ── brand and price (None = no data for this user × category) ────────────
     brand_count_30d:      Optional[int]   = None
@@ -113,6 +114,8 @@ def _to_feature_frame(records: list[ScoreRequest]) -> pd.DataFrame:
     X['cart_view_ratio_30d'] = X['carts_30d'] / X['views_30d'].clip(lower=1)
     X['cart_view_ratio_7d']  = X['carts_7d']  / X['views_7d'].clip(lower=1)
     X = X[FEATURE_COLS]
+    # Optional fields arrive as None and produce object-dtype columns; coerce to numeric
+    X[NUM_COLS] = X[NUM_COLS].apply(pd.to_numeric, errors='coerce')
     X['category_l1'] = pd.Categorical(X['category_l1'], categories=KEPT_CATS)
     return X
 

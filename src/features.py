@@ -1,7 +1,7 @@
 """
 features.py — builds train and test feature matrices from events_clean.parquet.
 
-User pool: Nov 1-5 purchasers + Oct-active non-purchasers sampled at 3:1.
+User pool: Nov 1-5 purchasers + non-purchasers sampled at 3:1.
 Train/test split: 80/20 by user.
 Scaffold: (user, category) cross-join across KEPT_CATS.
 Labels: 1 if user purchased in that category in Nov 1-5, else 0.
@@ -138,15 +138,19 @@ def main() -> None:
     )
     print(f'Nov 1-5 purchase (user, category) pairs: {len(nov_purchases):,}')
 
-    # User pool: purchasers + sampled Oct-active non-purchasers
+    # User pool: purchasers + non-purchasers sampled from the full dataset
     purchaser_users     = nov_purchases.select('user_id').unique()
+    all_event_users     = lf.select('user_id').unique().collect()
     oct_active_users    = oct_lf.select('user_id').unique().collect()
-    non_purchaser_users = oct_active_users.join(purchaser_users, on='user_id', how='anti')
+    non_purchaser_users = all_event_users.join(purchaser_users, on='user_id', how='anti')
 
     n_non              = min(len(purchaser_users) * NON_PURCHASER_RATIO, len(non_purchaser_users))
     # sort before sample: Polars unique/group_by don't guarantee row order, so without
     # sorting the seed produces different splits depending on upstream execution order
     sampled_non        = non_purchaser_users.sort('user_id').sample(n=n_non, seed=SEED)
+    n_cold_sampled     = len(sampled_non.join(oct_active_users, on='user_id', how='anti'))
+    print(f'Sampled non-purchasers: {len(sampled_non):,} '
+          f'({n_cold_sampled:,} with no Oct activity, {n_cold_sampled / len(sampled_non):.1%})')
     all_users          = pl.concat([purchaser_users, sampled_non]).sort('user_id')
     train_users        = all_users.sample(fraction=TRAIN_FRAC, seed=SEED)
     test_users         = all_users.join(train_users, on='user_id', how='anti')

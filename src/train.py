@@ -255,6 +255,18 @@ def main() -> None:
     print(f'Val AUC: {val_auc:.4f}  LogLoss: {val_ll:.4f}'
           f'  MeanProb: {val_preds.mean():.4f}  (true rate: {val_pos_rate:.4f})\n')
 
+    # Cold-start slice: users with no October activity
+    cold_mask     = val_df['total_views_30d'].fillna(0).eq(0).values
+    n_cold_users  = val_df.loc[cold_mask, 'user_id'].nunique()
+    n_val_users   = val_df['user_id'].nunique()
+    cold_pos      = int(y_val[cold_mask].sum())
+    cold_auc      = (roc_auc_score(y_val[cold_mask], val_preds[cold_mask])
+                     if cold_pos >= 2 and len(np.unique(y_val[cold_mask])) > 1 else float('nan'))
+    print(f'Cold-start val users: {n_cold_users:,} ({n_cold_users / n_val_users:.1%})  '
+          f'positives: {cold_pos:,} ({y_val[cold_mask].mean():.4f})')
+    print(f'Cold val AUC: {cold_auc:.4f}  '
+          f'MeanProb: {val_preds[cold_mask].mean():.4f}  Warm MeanProb: {val_preds[~cold_mask].mean():.4f}\n')
+
     # Final model on full train (pool + val)
     print('Training final model on full train set...')
     train_full = attach_cat_prior(train, cat_priors)
@@ -297,6 +309,8 @@ def main() -> None:
         'val_model_logloss':        round(val_ll, 4),
         'test_model_auc':           round(test_auc, 4), # final model on held-out test users (used once)
         'test_model_logloss':       round(test_ll, 4),
+        'val_cold_auc':             None if np.isnan(cold_auc) else round(cold_auc, 4),
+        'val_cold_user_fraction':   round(n_cold_users / n_val_users, 4),
     }
     with open(MODELS_DIR / 'model_info.json', 'w') as f:
         json.dump(model_info, f, indent=2)
