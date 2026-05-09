@@ -133,10 +133,23 @@ Both scores sit near their category priors (electronics 0.185, kids 0.003) as ex
 
 ---
 
+## Tests
+
+```bash
+uv run pytest tests/
+```
+
+`tests/test_features.py` checks feature-engineering invariants on synthetic data (window filtering, recency-from-cutoff, cold-user fill behaviour). `tests/test_serve.py` covers the API contract (status codes, schema, validation) and behaviour (cold-start scores track category priors, warm > cold for the same category); the serve tests skip themselves if the trained model isn't on disk. CI runs `ruff check` + `pytest` on every push (`.github/workflows/ci.yml`).
+
+---
+
 ## Repo Structure
 
 ```
 .
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # ruff + pytest on push / PR
 ├── data/                        # gitignored
 │   ├── 2019-Oct.csv             # download manually
 │   ├── 2019-Nov.csv             # download manually
@@ -147,7 +160,7 @@ Both scores sit near their category priors (electronics 0.185, kids 0.003) as ex
 │   └── test_predictions.parquet
 ├── figures/
 ├── models/
-│   ├── lgb_model.pkl            # gitignored
+│   ├── lgb_model.pkl            # small enough to track (~560 KB)
 │   └── model_info.json          # params, n_estimators, OOF/val metrics
 ├── notebooks/
 │   ├── 01_eda.ipynb             # EDA & cleaning
@@ -160,6 +173,10 @@ Both scores sit near their category priors (electronics 0.185, kids 0.003) as ex
 │   ├── clean.py                 # CSVs → events_clean.parquet
 │   ├── features.py              # events_clean → feature parquets
 │   └── train.py                 # features → model, figures, test predictions
+├── tests/
+│   ├── conftest.py
+│   ├── test_features.py         # feature engineering invariants
+│   └── test_serve.py            # API contract + behaviour tests
 ├── main.py                      # orchestrates full pipeline
 ├── serve.py                     # FastAPI scoring endpoint
 ├── pyproject.toml
