@@ -1,5 +1,7 @@
 # Purchase Propensity
 
+[![ci](https://github.com/seckinadali/purchase-propensity/actions/workflows/ci.yml/badge.svg)](https://github.com/seckinadali/purchase-propensity/actions/workflows/ci.yml)
+
 This project provides a model that predicts the probability that a user purchases from each product category in the next 5 days, given their browsing behavior over a month. Output is a probability score per (user, category)-pair, suitable for ranking users within a category for targeting, or for expected-value calculations.
 
 **Dataset:** [REES46 eCommerce behavior data](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store) — ~110M events across Oct–Nov 2019 (view / cart / purchase).
