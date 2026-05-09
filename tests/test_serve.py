@@ -6,6 +6,9 @@ is skipped if the trained model isn't on disk (e.g. in CI without training artif
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
+
+from serve import app
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_PATH = PROJECT_ROOT / 'models' / 'lgb_model.pkl'
@@ -15,10 +18,6 @@ if not MODEL_PATH.exists():
         'trained model not on disk; run the training pipeline before testing serve.py',
         allow_module_level=True,
     )
-
-from fastapi.testclient import TestClient
-
-from serve import app
 
 
 WARM_PAYLOAD = {

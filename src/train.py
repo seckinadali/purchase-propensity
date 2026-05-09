@@ -24,7 +24,7 @@ from sklearn.model_selection import GroupKFold
 from config import (
     DATA_DIR, FIGURES_DIR, MODELS_DIR, OUTPUT_DIR,
     SEED, N_JOBS, N_FOLDS, N_HP_TRIALS, VAL_FRAC,
-    KEPT_CATS, FEATURE_COLS, NUM_COLS, CAT_COLS,
+    KEPT_CATS, FEATURE_COLS, CAT_COLS,
 )
 
 
@@ -324,7 +324,7 @@ def main() -> None:
     print(f'Saved data/test_predictions.parquet  shape: {output.shape}')
 
     output.to_csv(OUTPUT_DIR / 'test_predictions.csv', index=False)
-    print(f'Saved output/test_predictions.csv')
+    print('Saved output/test_predictions.csv')
 
     sample = output.groupby('category_l1', observed=True).head(5)
     sample.to_csv(OUTPUT_DIR / 'test_predictions_sample.csv', index=False)
