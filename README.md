@@ -81,6 +81,13 @@ After training, start the scoring API:
 uvicorn serve:app --reload
 ```
 
+Or build and run as a container (serves the tracked model from `models/`):
+
+```bash
+docker build -t purchase-propensity-serve .
+docker run -p 8000:8000 purchase-propensity-serve
+```
+
 Interactive docs at `http://localhost:8000/docs`.
 
 **`POST /score`** — score a single (user, category) feature row:
@@ -179,6 +186,8 @@ uv run pytest tests/
 │   ├── conftest.py
 │   ├── test_features.py         # feature engineering invariants
 │   └── test_serve.py            # API contract + behaviour tests
+├── Dockerfile                   # serving image
+├── .dockerignore
 ├── main.py                      # orchestrates full pipeline
 ├── serve.py                     # FastAPI scoring endpoint
 ├── pyproject.toml
